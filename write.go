@@ -20,24 +20,33 @@ func writeVarInt(writer io.Writer, value uint32, hasMore bool) error {
 	return binary.Write(writer, binary.BigEndian, &curr)
 }
 
-func writeEvent(writer io.Writer, event *MidiEvent, prevEvent *MidiEvent) error {
-	var delta uint32 = event.AbsoluteTime
-	var err error
+func writeMetaEvent(writer io.Writer, event *MidiEvent, prevEvent *MidiEvent) error {
+	if event.Channel == 0 || event.Channel == 0x7 {
+		var channelType uint8 = (uint8(event.EventType) << 4) | event.Channel
 
-	if prevEvent != nil {
-		delta = delta - prevEvent.AbsoluteTime
-	}
+		err := binary.Write(writer, binary.BigEndian, &channelType)
 
-	err = writeVarInt(writer, delta, false)
+		if err != nil {
+			return err
+		}
 
-	if err != nil {
-		return nil
-	}
+		var dataLen uint8 = uint8(len(event.Metadata))
 
-	if event.EventType == Metadata {
+		err = binary.Write(writer, binary.BigEndian, &dataLen)
+
+		if err != nil {
+			return err
+		}
+
+		_, err = writer.Write(event.Metadata)
+
+		if err != nil {
+			return err
+		}
+	} else {
 		var channelType uint8 = 0xFF
 
-		err = binary.Write(writer, binary.BigEndian, &channelType)
+		err := binary.Write(writer, binary.BigEndian, &channelType)
 
 		if err != nil {
 			return err
@@ -58,6 +67,31 @@ func writeEvent(writer io.Writer, event *MidiEvent, prevEvent *MidiEvent) error 
 		}
 
 		_, err = writer.Write(event.Metadata)
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func writeEvent(writer io.Writer, event *MidiEvent, prevEvent *MidiEvent) error {
+	var delta uint32 = event.AbsoluteTime
+	var err error
+
+	if prevEvent != nil {
+		delta = delta - prevEvent.AbsoluteTime
+	}
+
+	err = writeVarInt(writer, delta, false)
+
+	if err != nil {
+		return nil
+	}
+
+	if event.EventType == Metadata {
+		err = writeMetaEvent(writer, event, prevEvent)
 
 		if err != nil {
 			return err

@@ -75,11 +75,20 @@ func readMidiEvent(reader io.Reader, prevEvent *MidiEvent) (*MidiEvent, uint32, 
 	}
 
 	if eventType == Metadata {
-		extraBytes, extraByteLen, err := readVarInt(reader)
-		bytesRead = bytesRead + extraByteLen
+		var extraBytes = uint32(0)
 
-		if err != nil {
-			return nil, bytesRead, err
+		if channel == 0xF {
+			var extraByteLen uint32
+			extraBytes, extraByteLen, err = readVarInt(reader)
+
+			if err != nil {
+				return nil, bytesRead, err
+			}
+			bytesRead = bytesRead + extraByteLen
+		} else if channel == 0x7 || channel == 0x0 {
+			extraBytes = uint32(firstByte)
+		} else {
+			return nil, bytesRead, errors.New("Invalid metadata chunk")
 		}
 
 		if extraBytes == 0 {
