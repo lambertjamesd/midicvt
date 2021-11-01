@@ -44,7 +44,7 @@ func cleanupMidi(midi *Midi) *Midi {
 	allEvents = append(allEvents, &MidiEvent{
 		endTime,
 		Metadata,
-		0,
+		0xF,
 		MetaEnd,
 		0,
 		nil,
